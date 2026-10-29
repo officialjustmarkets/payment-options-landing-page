@@ -40,6 +40,9 @@ const methods: Method[] = [
     icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg> },
 ];
 
+const KES_RATE = 129;
+const BONUS_MIN = 350;
+
 const tabs = ["All methods", "Cards", "Mobile", "Crypto", "Wallet", "Wire Transfer", "Payment Agent"] as const;
 
 function Index() {
@@ -104,7 +107,7 @@ function DepositModal({ m, onClose }: { m: Method; onClose: () => void }) {
         {done ? (
           <div className="py-6 text-center">
             <p className="font-semibold">Deposit request submitted</p>
-            <p className="mt-2 text-sm text-muted-foreground">{n} {m.currency} via {m.name}. Processing time: {m.time}.</p>
+            <p className="mt-2 text-sm text-muted-foreground">{n} {m.currency} via {m.name}{m.cat === "Mobile" ? ` (KSh ${(n * KES_RATE).toLocaleString()})` : ""}. {n >= BONUS_MIN ? `$${(n * 2).toLocaleString()} will be credited to your Personal Wallet.` : ""} Processing time: {m.time}.</p>
             <button onClick={onClose} className="mt-6 rounded bg-primary px-5 py-2 text-sm text-primary-foreground">Done</button>
           </div>
         ) : (
@@ -120,6 +123,14 @@ function DepositModal({ m, onClose }: { m: Method; onClose: () => void }) {
             <label className="block">Amount ({m.currency})
               <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`${m.min} – ${m.max}`} className="mt-1 w-full rounded border border-input px-3 py-2" />
             </label>
+            {m.cat === "Mobile" && n > 0 && (
+              <p className="rounded bg-muted px-3 py-2 text-xs">You will pay <span className="font-semibold">KSh {(n * KES_RATE).toLocaleString()}</span> <span className="text-muted-foreground">(1 USD = {KES_RATE} KSh)</span></p>
+            )}
+            {valid && (n >= BONUS_MIN ? (
+              <p className="rounded border border-border px-3 py-2 text-xs">Cashback bonus unlocked! You'll receive <span className="font-semibold">${(n * 2).toLocaleString()}</span> in your Personal Wallet.</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Deposit ${BONUS_MIN} or more to double it — e.g. $350 becomes $700 in your Personal Wallet.</p>
+            ))}
             {amount && !valid && <p className="text-xs text-destructive">Amount must be between {m.min} and {m.max}.</p>}
             <button disabled={!valid || !extra} className="w-full rounded bg-primary py-2.5 font-medium text-primary-foreground disabled:opacity-50">Continue</button>
           </form>

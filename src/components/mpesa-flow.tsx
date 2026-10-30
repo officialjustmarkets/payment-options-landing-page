@@ -19,7 +19,6 @@ export function MpesaFlow({ amount, phone, onClose }: { amount: number; phone: s
 
   return (
     <div className="space-y-5 text-sm">
-      <p className="border-b border-border pb-3 text-xs text-muted-foreground">Demo payment · No phone prompt or live verification is connected.</p>
       <div aria-live="polite" aria-atomic="true">
         {stage === "stk" ? (
           <div className="py-5 text-center" role="status">

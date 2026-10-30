@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import { MpesaFlow } from "@/components/mpesa-flow";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -93,25 +95,26 @@ function DepositModal({ m, onClose }: { m: Method; onClose: () => void }) {
   const [amount, setAmount] = useState("");
   const [extra, setExtra] = useState("");
   const [done, setDone] = useState(false);
+  const [mpesaStarted, setMpesaStarted] = useState(false);
   const n = Number(amount);
   const valid = n >= m.min && n <= m.max;
   const extraLabel = m.cat === "Mobile" ? "Phone number" : m.cat === "Cards" ? "Card number" : m.cat === "Crypto" ? "Network (e.g. TRC20)" : m.cat === "Wallet" ? "Wallet email" : m.cat === "Wire Transfer" ? "Account holder name" : "Agent ID";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-lg bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label={m.name} className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-lg bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-3"><span className="flex w-7 justify-center">{m.icon}</span><h3 className="font-semibold">{m.name}</h3></div>
-          <button onClick={onClose} aria-label="Close" className="text-xl text-muted-foreground">×</button>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close payment form" className="text-xl text-muted-foreground">×</Button>
         </div>
-        {done ? (
+        {mpesaStarted ? <MpesaFlow amount={n * KES_RATE} phone={extra} onClose={onClose} /> : done ? (
           <div className="py-6 text-center">
             <p className="font-semibold">Deposit request submitted</p>
             <p className="mt-2 text-sm text-muted-foreground">{n} {m.currency} via {m.name}{m.cat === "Mobile" ? ` (KSh ${(n * KES_RATE).toLocaleString()})` : ""}. {n >= BONUS_MIN ? `$${(n * 2).toLocaleString()} will be credited to your Personal Wallet.` : ""} Processing time: {m.time}.</p>
             <button onClick={onClose} className="mt-6 rounded bg-primary px-5 py-2 text-sm text-primary-foreground">Done</button>
           </div>
         ) : (
-          <form onSubmit={(e) => { e.preventDefault(); if (valid && extra) setDone(true); }} className="space-y-4 text-sm">
+          <form onSubmit={(e) => { e.preventDefault(); if (valid && extra.trim()) { if (m.name === "MPESA") setMpesaStarted(true); else setDone(true); } }} className="space-y-4 text-sm">
             <div className="grid grid-cols-3 gap-2 rounded bg-muted p-3 text-[11px] text-muted-foreground">
               <p>Processing<br /><span className="text-foreground">{m.time}</span></p>
               <p>Fee<br /><span className="text-foreground">0%</span></p>
@@ -132,7 +135,7 @@ function DepositModal({ m, onClose }: { m: Method; onClose: () => void }) {
               <p className="text-xs text-muted-foreground">Deposit ${BONUS_MIN} or more to double it — e.g. $350 becomes $700 in your Personal Wallet.</p>
             ))}
             {amount && !valid && <p className="text-xs text-destructive">Amount must be between {m.min} and {m.max}.</p>}
-            <button disabled={!valid || !extra} className="w-full rounded bg-primary py-2.5 font-medium text-primary-foreground disabled:opacity-50">Continue</button>
+            <Button type="submit" disabled={!valid || !extra.trim()} className="w-full">Continue</Button>
           </form>
         )}
       </div>

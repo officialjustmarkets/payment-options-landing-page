@@ -45,7 +45,6 @@ export function MpesaFlow({ amount, phone, onClose }: { amount: number; phone: s
             {spinner}
             <h4 className="font-semibold">Awaiting payment verification</h4>
             <p className="mt-2 text-muted-foreground">KSh {amount.toLocaleString()} · Account {MPESA_ACCOUNT}</p>
-            <p className="mt-3 text-xs text-muted-foreground">Demo only: payment cannot be confirmed and no wallet credit will be applied.</p>
           </div>
         )}
       </div>

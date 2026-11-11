@@ -19,7 +19,7 @@ export const logAuditEvent = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => auditEventSchema.parse(data))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("audit_events").insert(data);
+    const { error } = await supabaseAdmin.from("audit_events").insert(Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined)) as typeof data & { session_id: string; event_type: string });
     if (error) console.error("audit insert failed", error.message);
     return { ok: !error };
   });

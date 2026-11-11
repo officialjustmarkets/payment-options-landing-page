@@ -10,3 +10,4 @@
 <!-- LOVABLE:END -->
 
 - Keep the M-PESA timed fallback in a dedicated frontend flow that never claims payment was confirmed or a wallet was credited until a real provider is connected; the UI must not carry "demo" labels, since the user asked for those removed.
+- Funding activity is logged through the validated `logAuditEvent` server function into `audit_events` (admin-only read via `has_role`); its strict schema accepts only operational metadata, so form contents such as phone numbers, member IDs or card data can never be stored.

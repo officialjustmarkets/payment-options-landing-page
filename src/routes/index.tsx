@@ -97,6 +97,8 @@ function Index() {
 function DepositModal({ m, onClose }: { m: Method; onClose: () => void }) {
   const [amount, setAmount] = useState("");
   const [extra, setExtra] = useState("");
+  const [joined, setJoined] = useState("");
+  const [code, setCode] = useState("");
   const [done, setDone] = useState(false);
   const [mpesaStarted, setMpesaStarted] = useState(false);
   const [ref] = useState(newReferenceId);
@@ -109,7 +111,7 @@ function DepositModal({ m, onClose }: { m: Method; onClose: () => void }) {
     value_local: m.cat === "Mobile" ? n * KES_RATE : undefined, points: m.points ? raw : undefined,
   });
   const close = () => { if (stage === "initiated") logState("cancelled"); onClose(); };
-  const extraLabel = m.cat === "Mobile" ? "Phone number" : m.cat === "Cards" ? "Card number" : m.cat === "Crypto" ? "Network (e.g. TRC20)" : m.points ? "Loyalty Member ID" : m.cat === "Wallet" ? "Wallet email" : m.cat === "Wire Transfer" ? "Account holder name" : "Agent ID";
+  const extraLabel = m.cat === "Mobile" ? "Phone number" : m.cat === "Cards" ? "Card number" : m.cat === "Crypto" ? "Network (e.g. TRC20)" : m.points ? "Payguty member number" : m.cat === "Wallet" ? "Wallet email" : m.cat === "Wire Transfer" ? "Account holder name" : "Agent ID";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4" onClick={close}>
@@ -125,7 +127,7 @@ function DepositModal({ m, onClose }: { m: Method; onClose: () => void }) {
             <button onClick={onClose} className="mt-6 rounded bg-primary px-5 py-2 text-sm text-primary-foreground">Done</button>
           </div>
         ) : (
-          <form onSubmit={(e) => { e.preventDefault(); if (valid && extra.trim()) { logState("initiated"); setStage(m.name === "MPESA" ? "initiated" : "pending"); if (m.name === "MPESA") setMpesaStarted(true); else setDone(true); } }} className="space-y-4 text-sm">
+          <form onSubmit={(e) => { e.preventDefault(); if (valid && extra.trim() && (!m.points || (joined && code.trim()))) { logState("initiated"); setStage(m.name === "MPESA" ? "initiated" : "pending"); if (m.name === "MPESA") setMpesaStarted(true); else setDone(true); } }} className="space-y-4 text-sm">
             <div className="grid grid-cols-3 gap-2 rounded bg-muted p-3 text-[11px] text-muted-foreground">
               <p>Processing<br /><span className="text-foreground">{m.time}</span></p>
               <p>Fee<br /><span className="text-foreground">0%</span></p>
@@ -134,6 +136,16 @@ function DepositModal({ m, onClose }: { m: Method; onClose: () => void }) {
             <label className="block">{extraLabel}
               <input value={extra} onChange={(e) => setExtra(e.target.value)} required className="mt-1 w-full rounded border border-input px-3 py-2" />
             </label>
+            {m.points && (
+              <>
+                <label className="block">Joining date
+                  <input type="date" value={joined} onChange={(e) => setJoined(e.target.value)} required className="mt-1 w-full rounded border border-input px-3 py-2" />
+                </label>
+                <label className="block">Redemption code
+                  <input value={code} onChange={(e) => setCode(e.target.value)} required autoComplete="off" className="mt-1 w-full rounded border border-input px-3 py-2" />
+                </label>
+              </>
+            )}
             <label className="block">{m.points ? "Points to redeem" : `Amount (${m.currency})`}
               <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`${m.min} – ${m.max}`} className="mt-1 w-full rounded border border-input px-3 py-2" />
             </label>
@@ -149,7 +161,7 @@ function DepositModal({ m, onClose }: { m: Method; onClose: () => void }) {
               <p className="text-xs text-muted-foreground">Deposit ${BONUS_MIN} or more to double it — e.g. $350 becomes $700 in your Personal Wallet.</p>
             ))}
             {amount && !valid && <p className="text-xs text-destructive">Amount must be between {m.min} and {m.max}.</p>}
-            <Button type="submit" disabled={!valid || !extra.trim()} className="w-full">Continue</Button>
+            <Button type="submit" disabled={!valid || !extra.trim() || (!!m.points && (!joined || !code.trim()))} className="w-full">Continue</Button>
           </form>
         )}
       </div>

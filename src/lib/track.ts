@@ -1,6 +1,7 @@
-import { logAuditEvent } from "./audit.functions";
+import type { z } from "zod";
+import { logAuditEvent, type auditEventSchema } from "./audit.functions";
 
-type TrackInput = Omit<Parameters<typeof logAuditEvent>[0]["data"], "session_id">;
+type TrackInput = Omit<z.infer<typeof auditEventSchema>, "session_id">;
 
 function sessionId() {
   const key = "funding_session_id";
@@ -10,7 +11,7 @@ function sessionId() {
 }
 
 export function newReferenceId() {
-  return `TX-${10000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 90000)}`;
+  return `TX-${10000 + ((crypto.getRandomValues(new Uint32Array(1))[0] ?? 0) % 90000)}`;
 }
 
 export function track(event: TrackInput) {

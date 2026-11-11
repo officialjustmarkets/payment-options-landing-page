@@ -160,7 +160,7 @@ function Dashboard({ email }: { email: string }) {
               <ul className="mt-3 space-y-2 text-sm">
                 {stats.top.map(([m, c]) => (
                   <li key={m} className="flex items-center gap-3"><span className="w-40 truncate">{m}</span>
-                    <span className="h-2 rounded bg-primary" style={{ width: `${(c / stats.top[0][1]) * 60}%` }} /><span className="text-xs text-muted-foreground">{c}</span></li>
+                    <span className="h-2 rounded bg-primary" style={{ width: `${(c / (stats.top[0]?.[1] ?? 1)) * 60}%` }} /><span className="text-xs text-muted-foreground">{c}</span></li>
                 ))}
               </ul>
             )}

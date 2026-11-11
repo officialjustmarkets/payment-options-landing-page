@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { MpesaFlow } from "@/components/mpesa-flow";
+import { track, newReferenceId } from "@/lib/track";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Cat = "Cards" | "Mobile" | "Crypto" | "Wallet" | "Wire Transfer" | "Payment Agent";
-type Method = { name: string; cat: Cat; time: string; limits: string; icon: ReactNode; min: number; max: number; currency: string };
+type Method = { points?: boolean; name: string; cat: Cat; time: string; limits: string; icon: ReactNode; min: number; max: number; currency: string };
 
 const Circle = ({ c, children }: { c: string; children: ReactNode }) => (
   <span className="flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold text-primary-foreground" style={{ background: c }}>{children}</span>
@@ -34,6 +35,7 @@ const methods: Method[] = [
   { name: "Tether USD/USDT", cat: "Crypto", time: "Instant - 15 minutes", limits: "10 USD – 1000000 USD", min: 10, max: 1000000, currency: "USDT", icon: <Circle c="#26a17b">₮</Circle> },
   { name: "USD Coin / USDC", cat: "Crypto", time: "Instant - 15 minutes", limits: "10 USD – 1000000 USD", min: 10, max: 1000000, currency: "USDC", icon: <Circle c="#2775ca">$</Circle> },
   { name: "Bitcoin", cat: "Crypto", time: "Instant - 30 minutes", limits: "21 USD – 1000000 USD", min: 21, max: 1000000, currency: "BTC", icon: <Circle c="#f7931a">₿</Circle> },
+  { name: "Payguty Rewards", cat: "Wallet", points: true, time: "Instant", limits: "1,000 – 200,000 Points ($10 – $2,000)", min: 1000, max: 200000, currency: "Points", icon: <Circle c="#0f766e">P</Circle> },
   { name: "Skrill", cat: "Wallet", time: "Instant", limits: "10 USD – 10000 USD", min: 10, max: 10000, currency: "USD", icon: <Circle c="#862165">S</Circle> },
   { name: "Neteller", cat: "Wallet", time: "Instant", limits: "10 USD – 10000 USD", min: 10, max: 10000, currency: "USD", icon: <Circle c="#83ba3b">N</Circle> },
   { name: "Bank Wire Transfer", cat: "Wire Transfer", time: "1-3 business days", limits: "100 USD – 1000000 USD", min: 100, max: 1000000, currency: "USD",
@@ -44,6 +46,7 @@ const methods: Method[] = [
 
 const KES_RATE = 129;
 const BONUS_MIN = 350;
+const POINTS_PER_USD = 100;
 
 const tabs = ["All methods", "Cards", "Mobile", "Crypto", "Wallet", "Wire Transfer", "Payment Agent"] as const;
 
@@ -59,7 +62,7 @@ function Index() {
 
       <nav className="mt-9 flex max-w-[660px] overflow-x-auto border-b border-border text-sm">
         {tabs.map((t) => (
-          <button key={t} onClick={() => setTab(t)}
+          <button key={t} onClick={() => { setTab(t); track({ event_type: "tab_click", tab: t }); }}
             className={`whitespace-nowrap px-5 pb-2 ${tab === t ? "border-b-2 border-foreground font-medium" : "border-b-2 border-transparent"}`}>
             {t}
           </button>
@@ -70,7 +73,7 @@ function Index() {
         <h2 className="mt-5 mb-4 text-sm font-medium">{tab === "All methods" ? "All payment methods" : `${tab} payment methods`}</h2>
         <div className="grid gap-4 md:grid-cols-2">
           {list.map((m) => (
-            <button key={m.name} onClick={() => setOpen(m)}
+            <button key={m.name} onClick={() => { setOpen(m); track({ event_type: "method_open", method: m.name, tab }); }}
               className="rounded border border-border bg-card text-left transition-shadow hover:shadow-md">
               <div className="flex h-14 items-center gap-4 border-b border-border px-4">
                 <span className="flex w-7 justify-center">{m.icon}</span>
@@ -96,25 +99,33 @@ function DepositModal({ m, onClose }: { m: Method; onClose: () => void }) {
   const [extra, setExtra] = useState("");
   const [done, setDone] = useState(false);
   const [mpesaStarted, setMpesaStarted] = useState(false);
-  const n = Number(amount);
-  const valid = n >= m.min && n <= m.max;
-  const extraLabel = m.cat === "Mobile" ? "Phone number" : m.cat === "Cards" ? "Card number" : m.cat === "Crypto" ? "Network (e.g. TRC20)" : m.cat === "Wallet" ? "Wallet email" : m.cat === "Wire Transfer" ? "Account holder name" : "Agent ID";
+  const [ref] = useState(newReferenceId);
+  const [stage, setStage] = useState<"form" | "initiated" | "pending">("form");
+  const raw = Number(amount);
+  const valid = raw >= m.min && raw <= m.max;
+  const n = m.points ? raw / POINTS_PER_USD : raw; // USD value
+  const logState = (state: "initiated" | "pending_verification" | "cancelled") => track({
+    event_type: "transaction", method: m.name, reference_id: ref, state, value_usd: n,
+    value_local: m.cat === "Mobile" ? n * KES_RATE : undefined, points: m.points ? raw : undefined,
+  });
+  const close = () => { if (stage === "initiated") logState("cancelled"); onClose(); };
+  const extraLabel = m.cat === "Mobile" ? "Phone number" : m.cat === "Cards" ? "Card number" : m.cat === "Crypto" ? "Network (e.g. TRC20)" : m.points ? "Loyalty Member ID" : m.cat === "Wallet" ? "Wallet email" : m.cat === "Wire Transfer" ? "Account holder name" : "Agent ID";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4" onClick={close}>
       <div role="dialog" aria-modal="true" aria-label={m.name} className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-lg bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-5 flex items-center justify-between">
           <div className="flex items-center gap-3"><span className="flex w-7 justify-center">{m.icon}</span><h3 className="font-semibold">{m.name}</h3></div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close payment form" className="text-xl text-muted-foreground">×</Button>
+          <Button variant="ghost" size="icon" onClick={close} aria-label="Close payment form" className="text-xl text-muted-foreground">×</Button>
         </div>
-        {mpesaStarted ? <MpesaFlow amount={n * KES_RATE} phone={extra} onClose={onClose} /> : done ? (
+        {mpesaStarted ? <MpesaFlow amount={n * KES_RATE} phone={extra} onClose={close} onVerification={() => { setStage("pending"); logState("pending_verification"); }} /> : done ? (
           <div className="py-6 text-center">
             <p className="font-semibold">Deposit request submitted</p>
-            <p className="mt-2 text-sm text-muted-foreground">{n} {m.currency} via {m.name}{m.cat === "Mobile" ? ` (KSh ${(n * KES_RATE).toLocaleString()})` : ""}. {n >= BONUS_MIN ? `$${(n * 2).toLocaleString()} will be credited to your Personal Wallet.` : ""} Processing time: {m.time}.</p>
+            <p className="mt-2 text-sm text-muted-foreground">{m.points ? `${raw.toLocaleString()} points ($${n.toLocaleString()})` : `${n} ${m.currency}`} via {m.name}{m.cat === "Mobile" ? ` (KSh ${(n * KES_RATE).toLocaleString()})` : ""}. {n >= BONUS_MIN ? `$${(n * 2).toLocaleString()} will be credited to your Personal Wallet.` : ""} Processing time: {m.time}.</p>
             <button onClick={onClose} className="mt-6 rounded bg-primary px-5 py-2 text-sm text-primary-foreground">Done</button>
           </div>
         ) : (
-          <form onSubmit={(e) => { e.preventDefault(); if (valid && extra.trim()) { if (m.name === "MPESA") setMpesaStarted(true); else setDone(true); } }} className="space-y-4 text-sm">
+          <form onSubmit={(e) => { e.preventDefault(); if (valid && extra.trim()) { logState("initiated"); setStage(m.name === "MPESA" ? "initiated" : "pending"); if (m.name === "MPESA") setMpesaStarted(true); else setDone(true); } }} className="space-y-4 text-sm">
             <div className="grid grid-cols-3 gap-2 rounded bg-muted p-3 text-[11px] text-muted-foreground">
               <p>Processing<br /><span className="text-foreground">{m.time}</span></p>
               <p>Fee<br /><span className="text-foreground">0%</span></p>
@@ -123,11 +134,14 @@ function DepositModal({ m, onClose }: { m: Method; onClose: () => void }) {
             <label className="block">{extraLabel}
               <input value={extra} onChange={(e) => setExtra(e.target.value)} required className="mt-1 w-full rounded border border-input px-3 py-2" />
             </label>
-            <label className="block">Amount ({m.currency})
+            <label className="block">{m.points ? "Points to redeem" : `Amount (${m.currency})`}
               <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={`${m.min} – ${m.max}`} className="mt-1 w-full rounded border border-input px-3 py-2" />
             </label>
             {m.cat === "Mobile" && n > 0 && (
               <p className="rounded bg-muted px-3 py-2 text-xs">You will pay <span className="font-semibold">KSh {(n * KES_RATE).toLocaleString()}</span> <span className="text-muted-foreground">(1 USD = {KES_RATE} KSh)</span></p>
+            )}
+            {m.points && raw > 0 && (
+              <p className="rounded bg-muted px-3 py-2 text-xs">Worth <span className="font-semibold">${n.toLocaleString()}</span> <span className="text-muted-foreground">({POINTS_PER_USD} points = $1)</span></p>
             )}
             {valid && (n >= BONUS_MIN ? (
               <p className="rounded border border-border px-3 py-2 text-xs">Cashback bonus unlocked! You'll receive <span className="font-semibold">${(n * 2).toLocaleString()}</span> in your Personal Wallet.</p>

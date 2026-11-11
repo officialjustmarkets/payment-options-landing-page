@@ -6,7 +6,7 @@ export const MPESA_STK_TIMEOUT_MS = 10_000;
 export const MPESA_PAYBILL = "775093";
 export const MPESA_ACCOUNT = "142810011";
 
-export function MpesaFlow({ amount, phone, onClose }: { amount: number; phone: string; onClose: () => void }) {
+export function MpesaFlow({ amount, phone, onClose, onVerification }: { amount: number; phone: string; onClose: () => void; onVerification?: () => void }) {
   const [stage, setStage] = useState<"stk" | "paybill" | "verification">("stk");
 
   useEffect(() => {
@@ -38,7 +38,7 @@ export function MpesaFlow({ amount, phone, onClose }: { amount: number; phone: s
               <div className="flex justify-between gap-4 py-3"><dt className="text-muted-foreground">Amount</dt><dd className="font-semibold">KSh {amount.toLocaleString()}</dd></div>
             </dl>
             <p className="text-muted-foreground">In M-PESA, select Lipa na M-PESA, then Pay Bill, and enter these details. Never share your PIN here.</p>
-            <Button className="w-full" onClick={() => setStage("verification")}><Smartphone aria-hidden="true" />I have paid</Button>
+            <Button className="w-full" onClick={() => { setStage("verification"); onVerification?.(); }}><Smartphone aria-hidden="true" />I have paid</Button>
           </div>
         ) : (
           <div className="py-5 text-center" role="status">
